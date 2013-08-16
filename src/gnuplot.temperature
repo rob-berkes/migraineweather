@@ -1,0 +1,6 @@
+set terminal png small size 1280,1024
+set output "temperature.png" 
+set xlabel "Time"
+set ylabel "Temperature"
+plot 'weather.log' using 5:xticlabels(1) with linespoints
+

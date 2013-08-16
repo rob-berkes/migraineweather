@@ -1,0 +1,5 @@
+set terminal png medium size 1280,1024
+set output "dewpoint.png"
+set xlabel "Time"
+set ylabel "Dewpoint"
+plot 'weather.log' using 3:xticlabels(1) with linespoints
