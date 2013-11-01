@@ -1,7 +1,7 @@
 #/usr/bin/python
 import os
 wwwprefix='/var/www/html/'
-workprefix='/home/rob/Dropbox/Python/weather/www/'
+workprefix='/home/ec2-user/weather/www/'
 ifile=open('../etc/station.list','r')
 for station in ifile :
 	tstr=station.strip().split()
