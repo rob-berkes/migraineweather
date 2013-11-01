@@ -89,9 +89,6 @@ for station in infile:
 		elif line.startswith("Dew") :
 			linesplit=line.strip().split()
 			dewpoint=linesplit[2]
-		elif line.startswith("Pressure") :
-			linesplit=line.strip().split()
-			pressure=linesplit[2]
 		elif line.startswith("Temperature") : 
 			linesplit=line.strip().split()
 			temperature=linesplit[1]
@@ -99,11 +96,7 @@ for station in infile:
 			linesplit=line.strip().split()
 			recset=decode_metar(linesplit)
 
-	ofile=open("/home/ec2-user/migraineweather/logs/"+station[0]+".log","a")
-	oline=time+' '+humidity+' '+dewpoint+' '+pressure+' '+temperature+'\n'
-	ofile.write(oline)
-	ofile.close()
-	dbentry={"station" : station[0], "Y" : tyear, "D": tday, "M": tmonth, "time": time,"humidity":humidity,"dewpt":dewpoint,"baro":pressure,"tempF": temperature,"wspd":recset.wspd,"vis":recset.visibility,"wdx":recset.wdx,"wgusts":recset.wgusts, 
+	dbentry={"station" : station[0], "Y" : tyear, "D": tday, "M": tmonth, "time": time,"humidity":humidity,"dewpt":dewpoint,"tempF": temperature,"wspd":recset.wspd,"vis":recset.visibility,"wdx":recset.wdx,"wgusts":recset.wgusts, 
 		 "ccov":recset.ccov,"cheight":recset.cheight,"ctype":recset.ctype,"atype":recset.atype,"aread":recset.aread}
 	hourlies.insert(dbentry)
 	repcopy.close()
