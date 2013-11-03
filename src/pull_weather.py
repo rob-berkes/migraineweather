@@ -86,6 +86,11 @@ for station in infile:
 		elif linecount == 2 :
 			linesplit=line.strip().split()
 			time=linesplit[4]+linesplit[5]
+			HOUR=linesplit[4][0:2]
+			if linesplit[5]=='PM':
+				HOUR=int(HOUR)+12
+			elif linesplit[5]=='AM' and HOUR=='12':
+				HOUR='00'	
 		elif line.startswith("Dew") :
 			linesplit=line.strip().split()
 			dewpoint=linesplit[2]
@@ -97,7 +102,7 @@ for station in infile:
 			recset=decode_metar(linesplit)
 
 	dbentry={"station" : station[0], "Y" : tyear, "D": tday, "M": tmonth, "time": time,"humidity":humidity,"dewpt":dewpoint,"tempF": temperature,"wspd":recset.wspd,"vis":recset.visibility,"wdx":recset.wdx,"wgusts":recset.wgusts, 
-		 "ccov":recset.ccov,"cheight":recset.cheight,"ctype":recset.ctype,"atype":recset.atype,"aread":recset.aread}
+		 "ccov":recset.ccov,"cheight":recset.cheight,"ctype":recset.ctype,"atype":recset.atype,"aread":recset.aread,"hour":HOUR}
 	hourlies.insert(dbentry)
 	repcopy.close()
 
