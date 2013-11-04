@@ -1,11 +1,38 @@
 from pymongo import Connection
+import hashlib
+
 
 conn=Connection()
 db=conn.weather
 start_hour=2
 end_hour=17
-day=1
-month=1
-year=2013
+start_day=2
+end_day=2
+start_month=11
+end_month=start_month
+start_year=2013
+end_year=start_year
+station='KMSN'
 
-db.migraines.insert({'user':'Rob','D':day,'M':month,'Y':year,'start_hour':start_hour,'end_hour':end_hour})
+hId=hashlib.sha1(str('Rob')
+		+str(start_month)
+		+str(start_year)
+		+str(start_day)
+		+str(start_hour)
+		+str(end_month)
+		+str(end_year)
+		+str(end_day)
+		+str(end_hour)
+		+str(station)).hexdigest()
+
+db.migraines.insert({'_id':hId,
+		     'user':'Rob',
+		     'start_month':start_month,
+		     'start_year':start_year,
+		     'start_day':start_day,
+		     'start_hour':start_hour,
+		     'end_month':end_month,
+		     'end_year':end_year,
+		     'end_day':end_day,
+		     'end_hour':end_hour,
+		     'station':station})
