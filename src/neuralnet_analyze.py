@@ -235,12 +235,28 @@ def monteCarlo_event(RIDS):
             else:
                     print "interesting possibility found!"
         return
-#stationfile=open('/home/ec2-user/migraineweather/etc/station.quit()list','r')
-#for station in stationfile:
-#	station=station.strip().split()
-#	FQUERY={'station':station[0],'D':4,'M':11,'Y':2013}
-#	eventlist=find_events(FQUERY)
-#	insert_events(eventlist)
-#bldList_migraineEvent()
-rids=["1e0b22a31311957459f49fa973995d0f22604cc4","5c5b82ddbdb755892cc18a2b7df2615e427df908",]
-monteCarlo_event(rids)
+def main_runMonteCarlo():
+    IDLIST=[]
+    IDRS=db.mapEvents.find()
+    for rec in IDRS:
+    	if rec['recid'] not in IDLIST:
+    		IDLIST.append(rec['recid'])
+    print IDLIST=
+    monteCarlo_event(IDLIST)
+    return
+def main_bldMigEventsMap():
+    bldList_migraineEvent()
+    return
+def main_bldDayEventList():
+    stationfile=open('/home/ec2-user/migraineweather/etc/station.list','r')
+    for station in stationfile:
+    	station=station.strip().split()
+    	FQUERY={'station':station[0],'D':4,'M':11,'Y':2013}
+    	eventlist=find_events(FQUERY)
+    	insert_events(eventlist)
+    return
+
+main_runMonteCarlo()
+#main_bldMigEventsMap()
+#main_bldDayEventList()
+
