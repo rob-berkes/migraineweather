@@ -230,7 +230,11 @@ def monteCarlo_event():
 		if rcount['wgusts']==ecount['wgusts']:
 			wgustsMatches+=1
 	
-	print "done.  After "+str(RUNLENGTH)+" runs, "+str(ccovdxMatches)+" ccovdx Matches and "+str(wgustsMatches)+" wgusts Matches found."	
+	print "done.  After "+str(RUNLENGTH)+" runs, "+str(ccovdxMatches)+" ccovdx Matches and "+str(wgustsMatches)+" wgusts Matches found."
+    if ccovdxMatches >= 1 and wgustsMatches >=1 :
+            print "no remarkable patterns found"
+    else:
+            print "interesting possibility found!"
 	return
 #stationfile=open('/home/ec2-user/migraineweather/etc/station.list','r')
 #for station in stationfile:
