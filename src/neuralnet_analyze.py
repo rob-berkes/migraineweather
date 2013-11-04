@@ -189,21 +189,26 @@ def loadStationList():
 def getRandomFromList(SLIST):
 	sidx=random.randint(0,len(SLIST)-1)
 	return SLIST[sidx]
-
+def countEvents(ECOUNT,ETYPELIST,RECORDSET):
+	for rec in RECORDSET:
+		if rec['etype'] in ETYPELIST:
+			ECOUNT[rec['etype']]+=1
+	return ECOUNT
 def monteCarlo_event():
 	ecount={'ccovdx':0,'hum20ptrise':0,'hum25ptdrop':0,'temp20ptrise':0,'temp20ptdrop':0,'wgusts':0}
-	qrec={"recid" : "1e0b22a31311957459f49fa973995d0f22604cc4"}
+	rid="1e0b22a31311957459f49fa973995d0f22604cc4"
+	qrec={"recid" : rid}
 	RSET=db.mapEvents.find(qrec)
-	for rec in RSET:
-		if rec['etype']=='ccovdx':
-			ecount['ccovdx']+=1
-		elif rec['etype']=='wgusts':
-			ecount['wgusts']+=1
-		mrec=db.migraines.find_one({'_id':rec['recid']})
-		hour_length=mrec['end_hour']-mrec['start_hour']
+	ecount=countEvents(ecount,['ccovdx','wgusts',],RSET)
+	mrec=db.migraines.find_one({'_id':rid})
+	hour_length=mrec['end_hour']-mrec['start_hour']
 	print 'encounter has '+str(ecount['ccovdx'])+' ccovdx and '+str(ecount['wgusts'])+' wgusts over '+str(hour_length)+' hours. Running monte carlo simulation...'
 	STATIONLIST=loadStationList()
-	for COUNT in range(0,100):
+	ccovdxMatches=0
+	wgustsMatches=0
+	RUNLENGTH=100
+	for COUNT in range(0,RUNLENGTH):
+		rcount={'ccovdx':0,'hum20ptrise':0,'hum25ptdrop':0,'temp20ptrise':0,'temp20ptdrop':0,'wgusts':0}
 		D=random.randint(2,4)
 		start_hour=random.randint(0,9)
 		end_hour=start_hour+hour_length
@@ -217,15 +222,20 @@ def monteCarlo_event():
 				'$gte':start_hour,
 				'$lte':end_hour  },
 			}
-		print SQUERY
 		RS=db.events.find(SQUERY)
-		print RS.count()
-			
+		rcount=countEvents(rcount,['ccovdx','wgusts',],RS)	
+		print COUNT,rcount
+		if rcount['ccovdx']==ecount['ccovdx']:
+			ccovdxMatches+=1
+		if rcount['wgusts']==ecount['wgusts']:
+			wgustsMatches+=1
+	
+	print "done.  After "+str(RUNLENGTH)+" runs, "+str(ccovdxMatches)+" ccovdx Matches and "+str(wgustsMatches)+" wgusts Matches found."	
 	return
 #stationfile=open('/home/ec2-user/migraineweather/etc/station.list','r')
 #for station in stationfile:
 #	station=station.strip().split()
-#	FQUERY={'station':station[0],'D':3,'M':11,'Y':2013}
+#	FQUERY={'station':station[0],'D':4,'M':11,'Y':2013}
 #	eventlist=find_events(FQUERY)
 #	insert_events(eventlist)
 #bldList_migraineEvent()	
