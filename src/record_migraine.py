@@ -4,10 +4,10 @@ import hashlib
 
 conn=Connection()
 db=conn.weather
-start_hour=2
-end_hour=17
-start_day=2
-end_day=2
+start_hour=7
+end_hour=11
+start_day=4
+end_day=4
 start_month=11
 end_month=start_month
 start_year=2013
