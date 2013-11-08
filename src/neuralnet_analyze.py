@@ -77,8 +77,9 @@ def find_events(FQUERY):
 			started=True
 			init_wdx=eventClass(rec['hour'],rec['wdx'])
 			cur_wdx=eventClass(rec['hour'],rec['wdx'])
-			init_wspd=eventClass(rec['hour'],rec['wspd'])
-			cur_wspd=eventClass(rec['hour'],rec['wspd'])
+			init_wspd=eventClass(rec['hour'],int(rec['wspd']))
+			cur_wspd=init_wspd
+			last_wspd=init_wspd
 			init_ccov=eventClass(rec['hour'],rec['ccov'])
 			cur_ccov=eventClass(rec['hour'],rec['ccov'])
 			init_hum=eventClass(rec['hour'],int(rec['humidity'].strip('%')))
@@ -87,6 +88,7 @@ def find_events(FQUERY):
 			cur_temp=eventClass(rec['hour'],float(rec['tempF']))
 			init_aread=eventClass(rec['hour'],int(rec['aread']))
 			cur_aread=init_aread
+			last_aread=init_aread
 		        init_dewpt=eventClass(rec['hour'],float(rec['dewpt']))
 			cur_dewpt=init_dewpt
 			try:
@@ -94,11 +96,14 @@ def find_events(FQUERY):
 			except ValueError:
 				init_cheight=eventClass(rec['hour'],0)
 			cur_cheight=init_cheight	
+
 		cur_aread=eventClass(rec['hour'],int(rec['aread']))
 		cur_temp=eventClass(rec['hour'],float(rec['tempF']))
 		cur_ccov=eventClass(rec['hour'],rec['ccov'])
 		cur_hum=eventClass(rec['hour'],int(rec['humidity'].strip('%')))
 		cur_dewpt=eventClass(rec['hour'],float(rec['dewpt']))
+		cur_wspd=eventClass(rec['hour'],int(rec['wspd']))
+
 		try:
 			cur_cheight=eventClass(rec['hour'],int(rec['cheight']))
 		except ValueError:
@@ -131,19 +136,17 @@ def find_events(FQUERY):
 			eventlist.append(hBld_event(FQUERY,init_aread,cur_aread,'bar100ptrise',1))
 			init_aread=cur_aread
 
-		if cur_aread['value']+50 <= init_aread['value']:
-			eventlist.append(hBld_event(FQUERY,init_aread,cur_aread,'bar50ptdrop',2))
-			init_aread=cur_aread
-		if cur_aread['value']-50 >= init_aread['value']:
-			eventlist.append(hBld_event(FQUERY,init_aread,cur_aread,'bar50ptrise',2))
-			init_aread=cur_aread
-
-		if cur_aread['value']+25 <= init_aread['value']:
-			eventlist.append(hBld_event(FQUERY,init_aread,cur_aread,'bar25ptdrop',3))
-			init_aread=cur_aread
-		if cur_aread['value']-25 >= init_aread['value']:
-			eventlist.append(hBld_event(FQUERY,init_aread,cur_aread,'bar25ptrise',3))
-			init_aread=cur_aread
+		if cur_aread['value']+50 <= last_aread['value']:
+			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar50ptdrop',2))
+			last_aread=cur_aread
+		if cur_aread['value']-50 >= last_aread['value']:
+			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar50ptrise',2))
+			last_aread=cur_aread
+		if cur_aread['value']+25 <= last_aread['value']:
+			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar25ptdrop',3))
+		if cur_aread['value']-25 >= last_aread['value']:
+			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar25ptrise',3))
+		last_aread=cur_aread
 		if cur_cheight['value']-50 >= init_cheight['value']:	
 			eventlist.append(hBld_event(FQUERY,init_cheight,cur_cheight,'cheight5krise',5))
 			init_cheight=cur_cheight
@@ -156,6 +159,13 @@ def find_events(FQUERY):
 		if cur_dewpt['value']+5.0 <= init_dewpt['value']:
 			eventlist.append(hBld_event(FQUERY,init_dewpt,cur_dewpt,'dewpt50ptdrop',5))
 			init_dewpt=cur_dewpt
+		if cur_wspd['value']+5 <= last_wspd['value']:
+			eventlist.append(hBld_event(FQUERY,last_wspd,cur_wspd,'wspd5drop',4))
+			last_wspd=cur_wspd
+		if cur_wspd['value']-5 >= last_wspd['value']:
+			eventlist.append(hBld_event(FQUERY,last_wspd,cur_wspd,'wspd5rise',4))
+			last_wspd=cur_wspd
+		
 		if rec['wgusts'] != 0:
 			eventrec=eventRec('x',5,FQUERY['station'],FQUERY['D'],FQUERY['M'],FQUERY['Y'],'wgusts',0,int(rec['wgusts']),0,rec['hour'])
 			eid=hBld_Hash(eventrec)
@@ -273,6 +283,10 @@ def monteCarlo_user(IDLIST):
 		'bar25ptdrop',
 		'bar50ptrise',
 		'bar50ptdrop',
+		'wspd5rise',
+		'wspd5drop',
+		'bar100ptrise',
+		'bar100ptdrop',
 		]
 	ecount={}
 	for item in elist:
