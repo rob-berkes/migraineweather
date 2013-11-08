@@ -75,15 +75,19 @@ def find_events(FQUERY):
 	for rec in DAYSET:
 		if started==False:
 			started=True
-			init_wdx=eventClass(rec['hour'],rec['wdx'])
-			cur_wdx=eventClass(rec['hour'],rec['wdx'])
+			try:
+				init_wdx=eventClass(rec['hour'],int(rec['wdx']))
+			except ValueError:
+				init_wdx=eventClass(rec['hour'],0)
+			cur_wdx=init_wdx
 			init_wspd=eventClass(rec['hour'],int(rec['wspd']))
 			cur_wspd=init_wspd
 			last_wspd=init_wspd
 			init_ccov=eventClass(rec['hour'],rec['ccov'])
 			cur_ccov=eventClass(rec['hour'],rec['ccov'])
 			init_hum=eventClass(rec['hour'],int(rec['humidity'].strip('%')))
-			cur_hum=eventClass(rec['hour'],int(rec['humidity'].strip('%')))
+			cur_hum=init_hum
+			last_hum=init_hum
 			init_temp=eventClass(rec['hour'],float(rec['tempF']))
 			cur_temp=eventClass(rec['hour'],float(rec['tempF']))
 			init_aread=eventClass(rec['hour'],int(rec['aread']))
@@ -103,11 +107,18 @@ def find_events(FQUERY):
 		cur_hum=eventClass(rec['hour'],int(rec['humidity'].strip('%')))
 		cur_dewpt=eventClass(rec['hour'],float(rec['dewpt']))
 		cur_wspd=eventClass(rec['hour'],int(rec['wspd']))
-
+		try:
+			cur_wdx=eventClass(rec['hour'],int(rec['wdx']))
+		except ValueError:
+			cur_wdx=eventClass(rec['hour'],0)
 		try:
 			cur_cheight=eventClass(rec['hour'],int(rec['cheight']))
 		except ValueError:
 			cur_cheight=eventClass(rec['hour'],0)
+
+		if int(cur_wdx['value']/90) != int(init_wdx['value']/90):
+			eventlist.append(hBld_event(FQUERY,init_wdx,cur_wdx,'wdxdx',5))
+			init_wdx=cur_wdx 
 		if cur_ccov['value'] != init_ccov['value']:
 			eventlist.append(hBld_event(FQUERY,init_ccov,cur_ccov,'ccovdx',5))
 			init_ccov=cur_ccov
@@ -117,6 +128,12 @@ def find_events(FQUERY):
 		if cur_hum['value']-20 >= init_hum['value']:
 			eventlist.append(hBld_event(FQUERY,init_hum,cur_hum,'hum20ptrise',4))
 			init_hum=cur_hum
+		if cur_hum['value']-10 >= last_hum['value']:
+			eventlist.append(hBld_event(FQUERY,last_hum,cur_hum,'hum10ptrise',5))
+			last_hum=cur_hum
+		if cur_hum['value']+10 <= last_hum['value']:
+			eventlist.append(hBld_event(FQUERY,last_hum,cur_hum,'hum10ptdrop',5))
+			last_hum=cur_hum
 		if cur_temp['value']+20.0 <= init_temp['value']:
 			eventlist.append(hBld_event(FQUERY,init_temp,cur_temp,'temp20ptdrop',3))
 			init_temp=cur_temp
@@ -138,14 +155,20 @@ def find_events(FQUERY):
 
 		if cur_aread['value']+50 <= last_aread['value']:
 			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar50ptdrop',2))
-			last_aread=cur_aread
 		if cur_aread['value']-50 >= last_aread['value']:
 			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar50ptrise',2))
-			last_aread=cur_aread
 		if cur_aread['value']+25 <= last_aread['value']:
 			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar25ptdrop',3))
 		if cur_aread['value']-25 >= last_aread['value']:
 			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar25ptrise',3))
+		if cur_aread['value']-10 >= last_aread['value']:
+			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar10ptrise',4))
+		if cur_aread['value']+10 <= last_aread['value']:
+			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar10ptdrop',4))
+		if cur_aread['value']-5 >= last_aread['value']:
+			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar5ptrise',4))
+		if cur_aread['value']+5 <= last_aread['value']:
+			eventlist.append(hBld_event(FQUERY,last_aread,cur_aread,'bar5ptdrop',4))
 		last_aread=cur_aread
 		if cur_cheight['value']-50 >= init_cheight['value']:	
 			eventlist.append(hBld_event(FQUERY,init_cheight,cur_cheight,'cheight5krise',5))
@@ -165,7 +188,6 @@ def find_events(FQUERY):
 		if cur_wspd['value']-5 >= last_wspd['value']:
 			eventlist.append(hBld_event(FQUERY,last_wspd,cur_wspd,'wspd5rise',4))
 			last_wspd=cur_wspd
-		
 		if rec['wgusts'] != 0:
 			eventrec=eventRec('x',5,FQUERY['station'],FQUERY['D'],FQUERY['M'],FQUERY['Y'],'wgusts',0,int(rec['wgusts']),0,rec['hour'])
 			eid=hBld_Hash(eventrec)
@@ -240,13 +262,6 @@ def countEvents(ECOUNT,ETYPELIST,RECORDSET):
 	return ECOUNT
 def fnGetSimQueryList(RUNLENGTH,elist,hour_length):
 	STATIONLIST=loadStationList()
-	ccovdxMatches=0
-	wgustsMatches=0
-	humRiDrMatches=0
-	hum20ptriseMatches=0
-	hum25ptdropMatches=0
-	temp20ptriseMatches=0
-	temp20ptdropMatches=0
 	QUERYLIST=[]
 	for COUNT in range(0,RUNLENGTH):
     		D=random.randint(2,6)
@@ -287,6 +302,13 @@ def monteCarlo_user(IDLIST):
 		'wspd5drop',
 		'bar100ptrise',
 		'bar100ptdrop',
+		'wdxdx',
+		'hum10ptrise',
+		'hum10ptdrop',
+		'bar10ptrise',
+		'bar10ptdrop',
+		'bar5ptrise',
+		'bar5ptdrop',
 		]
 	ecount={}
 	for item in elist:
@@ -336,6 +358,16 @@ def monteCarlo_user(IDLIST):
 	bar25ptdropM=0
 	bar50ptriseM=0
 	bar50ptdropM=0
+	wspd5riseM=0
+	wspd5dropM=0
+	bar100ptriseM=0
+	bar100ptdropM=0
+	wdxdxM=0
+	hum10ptriseM=0
+	hum10ptdropM=0
+	matches={}
+	for item in elist:
+		matches[item]=0		
 	for case in SCORELIST:
     		if case['ccovdx']==ecount['ccovdx']:
     			ccovdxMatches+=1
@@ -367,7 +399,34 @@ def monteCarlo_user(IDLIST):
 			bar25ptriseM+=1
 		if case['bar25ptdrop']==ecount['bar25ptdrop']:
 			bar25ptdropM+=1
+		if case['bar50ptrise']==ecount['bar50ptrise']:
+			bar50ptriseM+=1
+		if case['bar50ptdrop']==ecount['bar50ptdrop']:
+			bar50ptdropM+=1
+		if case['bar100ptrise']==ecount['bar100ptrise']:
+			bar100ptriseM+=1
+		if case['bar100ptdrop']==ecount['bar100ptdrop']:
+			bar100ptdropM+=1
+		if case['wspd5rise']==ecount['wspd5rise']:
+			wspd5riseM+=1
+		if case['wspd5drop']==ecount['wspd5drop']:
+			wspd5dropM+=1
+		if case['wdxdx']==ecount['wdxdx']:
+			matches['wdxdx']+=1
+		if case['hum10ptrise']==ecount['hum10ptrise']:
+			matches['hum10ptrise']+=1
+		if case['hum10ptdrop']==ecount['hum10ptdrop']:
+			matches['hum10ptdrop']+=1
+		if case['bar10ptrise']==ecount['bar10ptrise']:
+			matches['bar10ptrise']+=1
+		if case['bar10ptdrop']==ecount['bar10ptdrop']:
+			matches['bar10ptdrop']+=1
+		if case['bar5ptrise']==ecount['bar5ptrise']:
+			matches['bar5ptrise']+=1
+		if case['bar5ptdrop']==ecount['bar5ptdrop']:
+			matches['bar5ptdrop']+=1
 	print str(RUNLENGTH)+" case histories run. Match report: "
+	print "\tCase Hits\tName\tSim Matches"
 	print "\t\t"+str(ecount['ccovdx'])+"\tccovdx:\t\t"+str(ccovdxMatches)
 	print "\t\t"+str(ecount['wgusts'])+"\twgusts:\t\t"+str(wgustsMatches)
 	print "\t\t"+str(ecount['hum20ptrise'])+"\thum20ptrise:\t"+str(hum20ptriseMatches)
@@ -382,6 +441,19 @@ def monteCarlo_user(IDLIST):
 	print "\t\t"+str(ecount['dewpt50ptrise'])+"\tdewpt50ptrise:\t"+str(dewpt50ptriseM)
 	print "\t\t"+str(ecount['bar25ptrise'])+"\tbar25ptrise:\t"+str(bar25ptriseM)
 	print "\t\t"+str(ecount['bar25ptdrop'])+"\tbar25ptddrop:\t"+str(bar25ptdropM)
+	print "\t\t"+str(ecount['bar50ptrise'])+"\tbar50ptrise:\t"+str(bar50ptriseM)
+	print "\t\t"+str(ecount['bar50ptdrop'])+"\tbar50ptddrop:\t"+str(bar50ptdropM)
+	print "\t\t"+str(ecount['bar100ptrise'])+"\tbar100ptrise:\t"+str(bar100ptriseM)
+	print "\t\t"+str(ecount['bar100ptdrop'])+"\tbar100ptddrop:\t"+str(bar100ptdropM)
+	print "\t\t"+str(ecount['wspd5rise'])+"\twspd5rise:\t"+str(wspd5riseM)
+	print "\t\t"+str(ecount['wspd5drop'])+"\twspd5drop:\t"+str(wspd5dropM)
+	print "\t\t"+str(ecount['wdxdx'])+"\twdxdx:\t\t"+str(matches['wdxdx'])
+	print "\t\t"+str(ecount['hum10ptrise'])+"\thum10ptrise:\t"+str(matches['hum10ptrise'])
+	print "\t\t"+str(ecount['hum10ptdrop'])+"\thum10ptdrop:\t"+str(matches['hum10ptdrop'])
+	print "\t\t"+str(ecount['bar10ptrise'])+"\tbar10ptrise:\t"+str(matches['bar10ptrise'])
+	print "\t\t"+str(ecount['bar10ptdrop'])+"\tbar10ptddrop:\t"+str(matches['bar10ptdrop'])
+	print "\t\t"+str(ecount['bar5ptrise'])+"\tbar5ptrise:\t"+str(matches['bar5ptrise'])
+	print "\t\t"+str(ecount['bar5ptdrop'])+"\tbar5ptddrop:\t"+str(matches['bar5ptdrop'])
 	print "==================================="	
         return
 def main_runMonteCarlo():
@@ -473,9 +545,10 @@ def main_bldDayEventList():
     stationfile=open('/home/ec2-user/migraineweather/etc/station.list','r')
     for station in stationfile:
     	station=station.strip().split()
-    	FQUERY={'station':station[0],'D':2,'M':11,'Y':2013}
-    	eventlist=find_events(FQUERY)
-    	insert_events(eventlist)
+    	for D in range(2,7):
+		FQUERY={'station':station[0],'D':D,'M':11,'Y':2013}
+    		eventlist=find_events(FQUERY)
+    		insert_events(eventlist)
     return
 
 main_runMonteCarlo()
