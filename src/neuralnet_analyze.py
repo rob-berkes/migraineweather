@@ -44,20 +44,6 @@ class eventRec:
 	def __setitem__(self,vid,vval):
 		self.vid=vval
 		return
-class evtCount:
-	_id=str(),
-	ccovdx=0,
-	hum20ptrise=0,
-	hum25ptdrop=0,
-	temp20ptdrop=0,
-	temp20ptrise=0,
-	bar50ptrise=0,
-	bar50ptdrop=0,
-	bar100ptdrop=0,
-	bar100ptrise=0,
-	wgusts=0,
-	def __init__(self):
-		return
 conn=Connection()
 db=conn.weather
 def hBld_Hash(rec):
@@ -89,7 +75,8 @@ def find_events(FQUERY):
 			cur_hum=init_hum
 			last_hum=init_hum
 			init_temp=eventClass(rec['hour'],float(rec['tempF']))
-			cur_temp=eventClass(rec['hour'],float(rec['tempF']))
+			cur_temp=init_temp
+			last_temp=init_temp
 			init_aread=eventClass(rec['hour'],int(rec['aread']))
 			cur_aread=init_aread
 			last_aread=init_aread
@@ -134,6 +121,12 @@ def find_events(FQUERY):
 		if cur_hum['value']+10 <= last_hum['value']:
 			eventlist.append(hBld_event(FQUERY,last_hum,cur_hum,'hum10ptdrop',5))
 			last_hum=cur_hum
+		if cur_hum['value']-5 >= last_hum['value']:
+			eventlist.append(hBld_event(FQUERY,last_hum,cur_hum,'hum5ptrise',5))
+			last_hum=cur_hum
+		if cur_hum['value']+5 <= last_hum['value']:
+			eventlist.append(hBld_event(FQUERY,last_hum,cur_hum,'hum5ptdrop',5))
+			last_hum=cur_hum
 		if cur_temp['value']+20.0 <= init_temp['value']:
 			eventlist.append(hBld_event(FQUERY,init_temp,cur_temp,'temp20ptdrop',3))
 			init_temp=cur_temp
@@ -146,6 +139,12 @@ def find_events(FQUERY):
 		if cur_temp['value']+10.0 <= init_temp['value']:
 			eventlist.append(hBld_event(FQUERY,init_temp,cur_temp,'temp10ptdrop',4))
 			init_temp=cur_temp
+		if cur_temp['value']-5.0 >= last_temp['value']:
+			eventlist.append(hBld_event(FQUERY,last_temp,cur_temp,'temp5ptrise',4))
+			last_temp=cur_temp
+		if cur_temp['value']+5.0 <= last_temp['value']:
+			eventlist.append(hBld_event(FQUERY,last_temp,cur_temp,'temp5ptdrop',4))
+			last_temp=cur_temp
 		if cur_aread['value']+100 <= init_aread['value']:
 			eventlist.append(hBld_event(FQUERY,init_aread,cur_aread,'bar100ptdrop',1))
 			init_aread=cur_aread
@@ -219,7 +218,6 @@ def bldList_migraineEvent():
 		recnum+=1
 		recstr="%05d" % (recnum,)
 		recid=str(recstr)+str(rec['user'])
-		eventCount=evtCount()
 		D=rec['start_day']
 		hour=rec['start_hour']
 		FQUERY={'station':rec['station'],
@@ -257,16 +255,15 @@ def getRandomFromList(SLIST):
 	return SLIST[sidx]
 def countEvents(ECOUNT,ETYPELIST,RECORDSET):
 	for rec in RECORDSET:
-		if rec['etype'] in ETYPELIST:
-			ECOUNT[rec['etype']]+=1
+		ECOUNT[rec['etype']]+=1
 	return ECOUNT
-def fnGetSimQueryList(RUNLENGTH,elist,hour_length):
+def fnGetSimQueryList(RUNLENGTH,elist,hour_length,s_hour,e_hour):
 	STATIONLIST=loadStationList()
 	QUERYLIST=[]
 	for COUNT in range(0,RUNLENGTH):
-    		D=random.randint(2,6)
-    		start_hour=random.randint(0,9)
-    		end_hour=start_hour+hour_length
+    		D=random.randint(2,10)
+    		start_hour=random.randint(s_hour-1,s_hour+1)
+    		end_hour=random.randint(e_hour-1,e_hour+1)
     		station=getRandomFromList(STATIONLIST)
     		SQUERY={'station':station,
     			'D':D,
@@ -281,34 +278,40 @@ def fnGetSimQueryList(RUNLENGTH,elist,hour_length):
 	return QUERYLIST
 		
 def monteCarlo_user(IDLIST):
+	RUNLENGTH=100
 	USER='Rob'
-	elist=['ccovdx',
-		'wgusts',
-		'hum20ptrise',
-		'hum25ptdrop',
-		'temp20ptrise',
-		'temp20ptdrop',
-		'temp10ptrise',
-		'temp10ptdrop',
+	elist=[
+		'bar5ptrise',
+		'bar5ptdrop',
+		'bar10ptrise',
+		'bar10ptdrop',
+		'bar25ptrise',
+		'bar25ptdrop',
+		'bar50ptdrop',
+		'bar50ptrise',
+		'bar100ptdrop',
+		'bar100ptrise',
+		'ccovdx',
 		'cheight5krise',
 		'cheight5kdrop',
 		'dewpt50ptrise',
 		'dewpt50ptdrop',
-		'bar25ptrise',
-		'bar25ptdrop',
-		'bar50ptrise',
-		'bar50ptdrop',
-		'wspd5rise',
-		'wspd5drop',
-		'bar100ptrise',
-		'bar100ptdrop',
-		'wdxdx',
+		'hum5ptrise',
+		'hum5ptdrop',
 		'hum10ptrise',
 		'hum10ptdrop',
-		'bar10ptrise',
-		'bar10ptdrop',
-		'bar5ptrise',
-		'bar5ptdrop',
+		'hum20ptrise',
+		'hum25ptdrop',
+		'temp5ptrise',
+		'temp5ptdrop',
+		'temp10ptrise',
+		'temp10ptdrop',
+		'temp20ptrise',
+		'temp20ptdrop',
+		'wdxdx',
+		'wgusts',
+		'wspd5rise',
+		'wspd5drop',
 		]
 	ecount={}
 	for item in elist:
@@ -327,8 +330,7 @@ def monteCarlo_user(IDLIST):
 	for ID in IDLIST:
 	    mrec=db.migraines.find_one({'_id':ID})
 	    hour_length=mrec['end_hour']-mrec['start_hour']
-	    RUNLENGTH=500
-	    SIMLIST=fnGetSimQueryList(RUNLENGTH,elist,hour_length)
+	    SIMLIST=fnGetSimQueryList(RUNLENGTH,elist,hour_length,mrec['start_hour'],mrec['end_hour'])
 	    FULLSIMLIST.append(SIMLIST)
 	print "Now scoring scenarios..."
 	SCORELIST=[]
@@ -341,119 +343,49 @@ def monteCarlo_user(IDLIST):
 			RS=db.events.find(FULLSIMLIST[a][b])
 			rcount=countEvents(rcount,elist,RS)
 		SCORELIST.append(rcount)
-	ccovdxMatches=0
-	wgustsMatches=0
 	humRiDrMatches=0
-	hum20ptriseMatches=0
-	hum25ptdropMatches=0
-	temp20ptriseMatches=0
-	temp20ptdropMatches=0
-	temp10ptriseMatches=0
-	temp10ptdropMatches=0
-	cheight5kriseM=0
-	cheight5kdropM=0
-	dewpt50ptriseM=0
-	dewpt50ptdropM=0
-	bar25ptriseM=0
-	bar25ptdropM=0
-	bar50ptriseM=0
-	bar50ptdropM=0
-	wspd5riseM=0
-	wspd5dropM=0
-	bar100ptriseM=0
-	bar100ptdropM=0
-	wdxdxM=0
-	hum10ptriseM=0
-	hum10ptdropM=0
+	BarRiseM=0
+	BarDropM=0
+	BarComboM=0
+	s_BarComboM=0
 	matches={}
 	for item in elist:
 		matches[item]=0		
 	for case in SCORELIST:
     		if case['ccovdx']==ecount['ccovdx']:
-    			ccovdxMatches+=1
+    			matches['ccovdx']+=1
     		if case['wgusts']==ecount['wgusts']:
-    			wgustsMatches+=1
+    			matches['wgusts']+=1
 		if case['hum20ptrise']>0 and rcount['hum25ptdrop']>0:
 			humRiDrMatches+=1
-		if case['hum20ptrise']==ecount['hum20ptrise']:
-			hum20ptriseMatches+=1
-		if case['hum25ptdrop']==ecount['hum25ptdrop']:
-			hum25ptdropMatches+=1
-		if case['temp20ptrise']==ecount['temp20ptrise']:
-			temp20ptriseMatches+=1
-		if case['temp20ptdrop']==ecount['temp20ptdrop']:
-			temp20ptdropMatches+=1
-		if case['temp10ptrise']==ecount['temp10ptrise']:
-			temp10ptriseMatches+=1
-		if case['temp10ptdrop']==ecount['temp10ptdrop']:
-			temp10ptdropMatches+=1
-		if case['cheight5krise']==ecount['cheight5krise']:
-			cheight5kriseM+=1
-		if case['cheight5kdrop']==ecount['cheight5kdrop']:
-			cheight5kdropM+=1
-		if case['dewpt50ptdrop']==ecount['dewpt50ptdrop']:
-			dewpt50ptdropM+=1
-		if case['dewpt50ptrise']==ecount['dewpt50ptrise']:
-			dewpt50ptriseM+=1
-		if case['bar25ptrise']==ecount['bar25ptrise']:
-			bar25ptriseM+=1
-		if case['bar25ptdrop']==ecount['bar25ptdrop']:
-			bar25ptdropM+=1
-		if case['bar50ptrise']==ecount['bar50ptrise']:
-			bar50ptriseM+=1
-		if case['bar50ptdrop']==ecount['bar50ptdrop']:
-			bar50ptdropM+=1
-		if case['bar100ptrise']==ecount['bar100ptrise']:
-			bar100ptriseM+=1
-		if case['bar100ptdrop']==ecount['bar100ptdrop']:
-			bar100ptdropM+=1
-		if case['wspd5rise']==ecount['wspd5rise']:
-			wspd5riseM+=1
-		if case['wspd5drop']==ecount['wspd5drop']:
-			wspd5dropM+=1
-		if case['wdxdx']==ecount['wdxdx']:
-			matches['wdxdx']+=1
-		if case['hum10ptrise']==ecount['hum10ptrise']:
-			matches['hum10ptrise']+=1
-		if case['hum10ptdrop']==ecount['hum10ptdrop']:
-			matches['hum10ptdrop']+=1
-		if case['bar10ptrise']==ecount['bar10ptrise']:
-			matches['bar10ptrise']+=1
-		if case['bar10ptdrop']==ecount['bar10ptdrop']:
-			matches['bar10ptdrop']+=1
-		if case['bar5ptrise']==ecount['bar5ptrise']:
-			matches['bar5ptrise']+=1
-		if case['bar5ptdrop']==ecount['bar5ptdrop']:
-			matches['bar5ptdrop']+=1
+		caseBarRises=case['bar25ptrise']+case['bar50ptrise']+case['bar100ptrise']+case['bar5ptrise']+case['bar10ptrise']
+		s_caseBarRises=case['bar5ptrise']+case['bar10ptrise']
+		caseBarDrops=case['bar25ptdrop']+case['bar50ptdrop']+case['bar100ptdrop']+case['bar5ptdrop']+case['bar10ptdrop']
+		s_caseBarDrops=case['bar5ptdrop']+case['bar10ptdrop']
+		eBarRises=ecount['bar25ptrise']+ecount['bar50ptrise']+ecount['bar100ptrise']+ecount['bar5ptrise']+ecount['bar10ptrise']
+		s_eBarRises=ecount['bar5ptrise']+ecount['bar10ptrise']
+		eBarDrops=ecount['bar25ptdrop']+ecount['bar50ptdrop']+ecount['bar100ptdrop']+ecount['bar5ptdrop']+ecount['bar10ptdrop']
+		s_eBarDrops=ecount['bar5ptdrop']+ecount['bar10ptdrop']
+		if caseBarRises == eBarRises:
+			BarRiseM+=1
+		if caseBarDrops == eBarDrops:
+			BarDropM+=1
+		if (caseBarRises == eBarRises) and (caseBarDrops == eBarDrops):
+			BarComboM+=1
+		if (s_caseBarRises == s_eBarRises) and (s_caseBarDrops == s_eBarDrops):
+			s_BarComboM+=1
+		for item in elist:
+			if case[item]==ecount[item]:
+				matches[item]+=1
 	print str(RUNLENGTH)+" case histories run. Match report: "
-	print "\tCase Hits\tName\tSim Matches"
-	print "\t\t"+str(ecount['ccovdx'])+"\tccovdx:\t\t"+str(ccovdxMatches)
-	print "\t\t"+str(ecount['wgusts'])+"\twgusts:\t\t"+str(wgustsMatches)
-	print "\t\t"+str(ecount['hum20ptrise'])+"\thum20ptrise:\t"+str(hum20ptriseMatches)
-	print "\t\t"+str(ecount['hum25ptdrop'])+"\thum25ptdrop:\t"+str(hum25ptdropMatches)
-	print "\t\t"+str(ecount['temp20ptrise'])+"\ttemp20ptrise:\t"+str(temp20ptriseMatches)
-	print "\t\t"+str(ecount['temp20ptdrop'])+"\ttemp20ptdrop:\t"+str(temp20ptdropMatches)
-	print "\t\t"+str(ecount['temp10ptrise'])+"\ttemp10ptrise:\t"+str(temp10ptriseMatches)
-	print "\t\t"+str(ecount['temp10ptdrop'])+"\ttemp10ptdrop:\t"+str(temp10ptdropMatches)
-	print "\t\t"+str(ecount['cheight5krise'])+"\tcheight5krise:\t"+str(cheight5kriseM)
-	print "\t\t"+str(ecount['cheight5kdrop'])+"\tcheight5kdrop:\t"+str(cheight5kdropM)
-	print "\t\t"+str(ecount['dewpt50ptdrop'])+"\tdewpt50ptdrop:\t"+str(dewpt50ptdropM)
-	print "\t\t"+str(ecount['dewpt50ptrise'])+"\tdewpt50ptrise:\t"+str(dewpt50ptriseM)
-	print "\t\t"+str(ecount['bar25ptrise'])+"\tbar25ptrise:\t"+str(bar25ptriseM)
-	print "\t\t"+str(ecount['bar25ptdrop'])+"\tbar25ptddrop:\t"+str(bar25ptdropM)
-	print "\t\t"+str(ecount['bar50ptrise'])+"\tbar50ptrise:\t"+str(bar50ptriseM)
-	print "\t\t"+str(ecount['bar50ptdrop'])+"\tbar50ptddrop:\t"+str(bar50ptdropM)
-	print "\t\t"+str(ecount['bar100ptrise'])+"\tbar100ptrise:\t"+str(bar100ptriseM)
-	print "\t\t"+str(ecount['bar100ptdrop'])+"\tbar100ptddrop:\t"+str(bar100ptdropM)
-	print "\t\t"+str(ecount['wspd5rise'])+"\twspd5rise:\t"+str(wspd5riseM)
-	print "\t\t"+str(ecount['wspd5drop'])+"\twspd5drop:\t"+str(wspd5dropM)
-	print "\t\t"+str(ecount['wdxdx'])+"\twdxdx:\t\t"+str(matches['wdxdx'])
-	print "\t\t"+str(ecount['hum10ptrise'])+"\thum10ptrise:\t"+str(matches['hum10ptrise'])
-	print "\t\t"+str(ecount['hum10ptdrop'])+"\thum10ptdrop:\t"+str(matches['hum10ptdrop'])
-	print "\t\t"+str(ecount['bar10ptrise'])+"\tbar10ptrise:\t"+str(matches['bar10ptrise'])
-	print "\t\t"+str(ecount['bar10ptdrop'])+"\tbar10ptddrop:\t"+str(matches['bar10ptdrop'])
-	print "\t\t"+str(ecount['bar5ptrise'])+"\tbar5ptrise:\t"+str(matches['bar5ptrise'])
-	print "\t\t"+str(ecount['bar5ptdrop'])+"\tbar5ptddrop:\t"+str(matches['bar5ptdrop'])
+	print "\tCase Hits\tName\t\tSim Matches"
+	print "\t\t"+str(eBarRises)+"\tTotal Bar Rises\t\t"+str(BarRiseM)
+	print "\t\t"+str(eBarDrops)+"\tTotal Bar Drops\t\t"+str(BarDropM)
+	print "\t\t"+str(eBarRises)+","+str(eBarDrops)+"\tTotal Bar Matches\t"+str(BarComboM)
+	print "\t\t"+str(s_eBarRises)+","+str(s_eBarDrops)+"\tSmall Bar Matches\t"+str(s_BarComboM)
+	for item in elist:
+		print "\t\t"+str(ecount[item])+"\t"+item+"\t\t"+str(matches[item])
+	
 	print "==================================="	
         return
 def main_runMonteCarlo():
@@ -463,71 +395,6 @@ def main_runMonteCarlo():
 				
 		
 	return
-def monteCarlo_event(RIDS):
-	elist=['ccovdx','wgusts','hum20ptrise','hum25ptdrop','temp20ptrise','temp20ptdrop',]
-	for rid in RIDS:
-	    ecount={'ccovdx':0,'hum20ptrise':0,'hum25ptdrop':0,'temp20ptrise':0,'temp20ptdrop':0,'wgusts':0}
-	    qrec={"recid" : rid}
-	    RSET=db.mapEvents.find(qrec)
-	    ecount=countEvents(ecount,elist,RSET)
-	    mrec=db.migraines.find_one({'_id':rid})
-	    hour_length=mrec['end_hour']-mrec['start_hour']
-	    print "Migraine event #"+str(rid)+" . ECounts: "
-	    print ecount
-	    STATIONLIST=loadStationList()
-	    RUNLENGTH=100
-	    ccovdxMatches=0
-	    wgustsMatches=0
-	    humRiDrMatches=0
-	    hum20ptriseMatches=0
-	    hum25ptdropMatches=0
-	    temp20ptriseMatches=0
-	    temp20ptdropMatches=0
-	    for COUNT in range(0,RUNLENGTH):
-    		rcount={'ccovdx':0,'hum20ptrise':0,'hum25ptdrop':0,'temp20ptrise':0,'temp20ptdrop':0,'wgusts':0}
-    		D=random.randint(2,6)
-    		start_hour=random.randint(0,9)
-    		end_hour=start_hour+hour_length
-    		station=getRandomFromList(STATIONLIST)
-    		SQUERY={'station':station,
-    			'D':D,
-    			'M':11,
-    			'Y':2013,
-    			'evt_hour':
-    			{
-    				'$gte':start_hour,
-    				'$lte':end_hour  },
-    			}
-    		RS=db.events.find(SQUERY)
-    		rcount=countEvents(rcount,['ccovdx','wgusts','hum20ptrise','hum25ptdrop','temp20ptrise','temp20ptdrop'],RS)
-    		if rcount['ccovdx']==ecount['ccovdx']:
-    			ccovdxMatches+=1
-    		if rcount['wgusts']==ecount['wgusts']:
-    			wgustsMatches+=1
-		if rcount['hum20ptrise']>0 and rcount['hum25ptdrop']>0:
-			humRiDrMatches+=1
-		if rcount['hum20ptrise']==ecount['hum20ptrise']:
-			hum20ptriseMatches+=1
-		if rcount['hum25ptdrop']==ecount['hum25ptdrop']:
-			hum25ptdropMatches+=1
-		if rcount['temp20ptrise']==ecount['temp20ptrise']:
-			temp20ptriseMatches+=1
-		if rcount['temp20ptdrop']==ecount['temp20ptdrop']:
-			temp20ptdropMatches+=1
-	    print str(RUNLENGTH)+" runs done. Match report: "
-	    print "		ccovdx: "+str(ccovdxMatches)
-	    print "		wgusts: "+str(wgustsMatches)
-	    print " 		hum20ptrise: "+str(hum20ptriseMatches)
-	    print "		hum25ptdrop: "+str(hum25ptdropMatches)
-	    print "		temp20ptrise: "+str(temp20ptriseMatches)
-	    print "		temp20ptdrop: "+str(temp20ptdropMatches)
-	    print "		hum20ridr: "+str(humRiDrMatches)
-	    print "==================================="	
-            if ccovdxMatches >= 1 and wgustsMatches >=1 :
-                    print "no remarkable patterns found"
-            else:
-                    print "interesting possibility found!"
-        return
 def main_runMonteCarlo():
     IDLIST=[]
     IDRS=db.mapEvents.find()
@@ -545,7 +412,7 @@ def main_bldDayEventList():
     stationfile=open('/home/ec2-user/migraineweather/etc/station.list','r')
     for station in stationfile:
     	station=station.strip().split()
-    	for D in range(2,7):
+    	for D in range(2,11):
 		FQUERY={'station':station[0],'D':D,'M':11,'Y':2013}
     		eventlist=find_events(FQUERY)
     		insert_events(eventlist)
