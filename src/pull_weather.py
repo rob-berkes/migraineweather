@@ -61,8 +61,12 @@ def decode_metar(sline):
 				
 #connection=Connection('10.37.11.218',27017)
 connection=Connection()
+c2=Connection('10.170.19.106')
 db=connection.weather
+d2=c2.weather
+
 hourlies=db.hourlies
+h2rlies=d2.hourlies
 infile=open("/home/ec2-user/migraineweather/etc/station.list","r")
 tyear=datetime.date.today().year
 tmonth=datetime.date.today().month
@@ -104,5 +108,6 @@ for station in infile:
 	dbentry={"station" : station[0], "Y" : tyear, "D": tday, "M": tmonth, "time": time,"humidity":humidity,"dewpt":dewpoint,"tempF": temperature,"wspd":recset.wspd,"vis":recset.visibility,"wdx":recset.wdx,"wgusts":recset.wgusts, 
 		 "ccov":recset.ccov,"cheight":recset.cheight,"ctype":recset.ctype,"atype":recset.atype,"aread":recset.aread,"hour":HOUR}
 	hourlies.insert(dbentry)
+	h2rlies.insert(dbentry)
 	repcopy.close()
 

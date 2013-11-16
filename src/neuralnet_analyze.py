@@ -59,6 +59,8 @@ class evtCount:
 	def __init__(self):
 		return
 conn=Connection()
+c2=Connection('10.170.19.106')
+db2=c2.weather
 db=conn.weather
 def hBld_Hash(rec):
 	hash_bld_str=str(rec.station)+str(rec.D)+str(rec.M)+str(rec.Y)+str(rec.etype)+str(rec.old_val)+str(rec.new_val)+str(rec.init_hour)+str(rec.evt_hour)
@@ -211,35 +213,81 @@ def insert_events(eventlist):
 			'init_hour':int(event.init_hour),
 			'evt_hour':int(event.evt_hour)}
 		db.events.insert(irec)
+		db2.events.insert(irec)
 	return
-def bldList_migraineEvent():
+def bldList_migraineEvent(hbefore=0):
 	RSET=db.migraines.find()
 	recnum=0
+	print "hbefore is (see below)"
+	print hbefore
 	for rec in RSET:
 		recnum+=1
 		recstr="%05d" % (recnum,)
 		recid=str(recstr)+str(rec['user'])
-		D=rec['start_day']
-		hour=rec['start_hour']
-		FQUERY={'station':rec['station'],
-			'Y':rec['start_year'],
-			'M':rec['start_month'],
-			'D':rec['start_day']
-			}
-		ESET=db.events.find(FQUERY)
+		begin_hour=rec['start_hour']
+		begin_day=rec['start_day']
+		end_hour=rec['end_hour']
+		end_day=rec['end_day']
+		if hbefore > 0:
+			end_day=rec['start_day']
+			end_hour=rec['start_hour']
+			if rec['start_hour']>12:
+				begin_hour=rec['start_hour']-12
+				begin_day=rec['start_day']
+			else:
+				begin_hour=rec['start_hour']+12
+				begin_day=rec['start_day']-1
+		print begin_day,begin_hour,end_day,end_hour
+		if end_day != begin_day:
+			FQUERY1={'station':rec['station'],
+				'Y':rec['start_year'],
+				'M':rec['start_month'],
+				'D':begin_day,
+				'evt_hour':{
+						'$gte':begin_hour,
+						}
+					}
+			FQUERY2={'station':rec['station'],
+				'Y':rec['start_year'],
+				'M':rec['end_month'],
+				'D':end_day,
+				'evt_hour':{
+						'$lt':end_hour,
+						}
+					}
+			ESET1=db.events.find(FQUERY1)
+			ESET2=db.events.find(FQUERY2)
+			ESET=[]
+			for a in ESET1:
+				ESET.append(a)
+			for b in ESET2:
+				ESET.append(b)
+			print "if used!"
+		else:
+			FQUERY={'station':rec['station'],
+				'Y':rec['start_year'],
+				'M':rec['start_month'],
+				'D':begin_day,
+				'evt_hour':{'$gte':begin_hour,
+					    '$lte':end_hour
+						}
+				}
+			ESET=db.events.find(FQUERY)
+			print "else used!"
 		eventlist=[]
 		for event in ESET:
-			estr="eventCount.'"+str(event['etype'])+"'"
-			if event['evt_hour']>=rec['start_hour'] and event['evt_hour']<=rec['end_hour']:
-				nrec={'hour':event['evt_hour'],'etype':event['etype'],'recid':rec['_id']}
-				eventlist.append(nrec)
+			nrec={'hour':event['evt_hour'],'etype':event['etype'],'recid':rec['_id']}
+			eventlist.append(nrec)
 
 		for e in eventlist:
 			eid=str(e['hour'])+str(e['etype'])+str(e['recid'])
 			eid=hashlib.sha1(eid).hexdigest()
 			irec={'_id':str(eid),'hour':e['hour'],'etype':e['etype'],'recid':e['recid']}
-			db.mapEvents.insert(irec)
-			print e['hour'],e['etype'],e['recid']
+			if hbefore==0:
+				db.mapEvents.insert(irec)
+			else:
+				db.maphbEvt.insert(irec)
+			#print e['hour'],e['etype'],e['recid']
 		
 	return
 
@@ -258,14 +306,18 @@ def countEvents(ECOUNT,ETYPELIST,RECORDSET):
 	for rec in RECORDSET:
 		ECOUNT[rec['etype']]+=1
 	return ECOUNT
-def fnGetSimQueryList(RUNLENGTH,elist,s_hour,e_hour):
-	STATIONLIST=loadStationList()
+def fnGetSimQueryList(RUNLENGTH,elist,s_hour,e_hour,station,HB):
+#	STATIONLIST=loadStationList()
 	QUERYLIST=[]
 	for COUNT in range(0,RUNLENGTH):
-    		D=random.randint(2,10)
-    		start_hour=random.randint(s_hour-1,s_hour+1)
-    		end_hour=random.randint(e_hour-1,e_hour+1)
-    		station=getRandomFromList(STATIONLIST)
+    		D=random.randint(2,11)
+		if HB==1:
+    			start_hour=random.randint(0,11)
+    			end_hour=start_hour+12
+		else:	
+    			start_hour=random.randint(s_hour-1,s_hour+1)
+    			end_hour=random.randint(e_hour-1,e_hour+1)
+    		#station=getRandomFromList(STATIONLIST)
     		SQUERY={'station':station,
     			'D':D,
     			'M':11,
@@ -278,8 +330,8 @@ def fnGetSimQueryList(RUNLENGTH,elist,s_hour,e_hour):
 		QUERYLIST.append(SQUERY)
 	return QUERYLIST
 		
-def monteCarlo_user(IDLIST):
-	RUNLENGTH=1000
+def monteCarlo_user(IDLIST,HB=0):
+	RUNLENGTH=2500
 	USER='Rob'
 	elist=[
 		'bar5ptrise',
@@ -321,7 +373,10 @@ def monteCarlo_user(IDLIST):
 	ePROFILE=[]
 	for ID in IDLIST:
 		SQ_eRS={'recid':str(ID)}
-		eRS=db.mapEvents.find(SQ_eRS)
+		if HB==0:
+			eRS=db.mapEvents.find(SQ_eRS)
+		else:
+			eRS=db.maphbEvt.find(SQ_eRS)
 		ecount=countEvents(ecount,elist,eRS)
 		
 	print "Summary Ecount for "+str(len(IDLIST))+" records: "+str(ecount)
@@ -330,16 +385,18 @@ def monteCarlo_user(IDLIST):
 	FULLSIMLIST=[]
 	for ID in IDLIST:
 	    mrec=db.migraines.find_one({'_id':ID})
-	    SIMLIST=fnGetSimQueryList(RUNLENGTH,elist,mrec['start_hour'],mrec['end_hour'])
+	    SIMLIST=fnGetSimQueryList(RUNLENGTH,elist,mrec['start_hour'],mrec['end_hour'],mrec['station'],HB)
 	    FULLSIMLIST.append(SIMLIST)
 	print "Now scoring scenarios..."
 	SCORELIST=[]
 	for b in range(0,RUNLENGTH):
+		if b % 100 == 0:
+			print b
 		rcount={}
 		for item in elist:
 			rcount[item]=0
 		for a in range(0,CASELENGTH):
-			RS=db.events.find(FULLSIMLIST[a][b])
+			RS=db2.events.find(FULLSIMLIST[a][b])
 			rcount=countEvents(rcount,elist,RS)
 		SCORELIST.append(rcount)
 	humRiDrMatches=0
@@ -348,7 +405,7 @@ def monteCarlo_user(IDLIST):
 	BarComboM=0
 	matches={}
 	for item in elist:
-		matches[item]=0		
+		matches[item]=0
 	for case in SCORELIST:
     		if case['ccovdx']==ecount['ccovdx']:
     			matches['ccovdx']+=1
@@ -408,6 +465,10 @@ def monteCarlo_user(IDLIST):
 			matches['hum10ptrise']+=1
 		if case['hum10ptdrop']==ecount['hum10ptdrop']:
 			matches['hum10ptdrop']+=1
+		if case['hum5ptrise']==ecount['hum5ptrise']:
+			matches['hum5ptrise']+=1
+		if case['hum5ptdrop']==ecount['hum5ptdrop']:
+			matches['hum5ptdrop']+=1
 		if case['bar10ptrise']==ecount['bar10ptrise']:
 			matches['bar10ptrise']+=1
 		if case['bar10ptdrop']==ecount['bar10ptdrop']:
@@ -420,7 +481,7 @@ def monteCarlo_user(IDLIST):
 	print "\tCase Hits\tName\tSim Matches"
 	print "\t\t"+str(eBarRises)+"\tTotal Bar Rises\t\t"+str(BarRiseM)
 	print "\t\t"+str(eBarDrops)+"\tTotal Bar Drops\t\t"+str(BarDropM)
-	print "\t\t"+str(eBarRises)+","+str(eBarDrops)+"\tTotal Bar Matches\t\t"+str(BarComboM)
+	print "\t\t"+str(eBarRises)+","+str(eBarDrops)+"\tTotal Bar Matches\t"+str(BarComboM)
 	print "\t\t"+str(ecount['bar5ptrise'])+"\tbar5ptrise:\t\t"+str(matches['bar5ptrise'])
 	print "\t\t"+str(ecount['bar5ptdrop'])+"\tbar5ptdrop:\t\t"+str(matches['bar5ptdrop'])
 	print "\t\t"+str(ecount['bar10ptrise'])+"\tbar10ptrise:\t\t"+str(matches['bar10ptrise'])
@@ -438,6 +499,8 @@ def monteCarlo_user(IDLIST):
 	print "\t\t"+str(ecount['dewpt50ptrise'])+"\tdewpt50ptrise:\t\t"+str(matches['dewpt50ptrise'])
 	print "\t\t"+str(ecount['hum10ptrise'])+"\thum10ptrise:\t\t"+str(matches['hum10ptrise'])
 	print "\t\t"+str(ecount['hum10ptdrop'])+"\thum10ptdrop:\t\t"+str(matches['hum10ptdrop'])
+	print "\t\t"+str(ecount['hum5ptrise'])+"\thum5ptrise:\t\t"+str(matches['hum5ptrise'])
+	print "\t\t"+str(ecount['hum5ptdrop'])+"\thum5ptdrop:\t\t"+str(matches['hum5ptdrop'])
 	print "\t\t"+str(ecount['hum20ptrise'])+"\thum20ptrise:\t\t"+str(matches['hum20ptrise'])
 	print "\t\t"+str(ecount['hum25ptdrop'])+"\thum25ptdrop:\t\t"+str(matches['hum25ptdrop'])
 	print "\t\t"+str(ecount['temp10ptrise'])+"\ttemp10ptrise:\t\t"+str(matches['temp10ptrise'])
@@ -450,71 +513,6 @@ def monteCarlo_user(IDLIST):
 	print "\t\t"+str(ecount['wspd5drop'])+"\twspd5drop:\t\t"+str(matches['wspd5drop'])
 	print "==================================="	
         return
-def monteCarlo_event(RIDS):
-	elist=['ccovdx','wgusts','hum20ptrise','hum25ptdrop','temp20ptrise','temp20ptdrop',]
-	for rid in RIDS:
-	    ecount={'ccovdx':0,'hum20ptrise':0,'hum25ptdrop':0,'temp20ptrise':0,'temp20ptdrop':0,'wgusts':0}
-	    qrec={"recid" : rid}
-	    RSET=db.mapEvents.find(qrec)
-	    ecount=countEvents(ecount,elist,RSET)
-	    mrec=db.migraines.find_one({'_id':rid})
-	    hour_length=mrec['end_hour']-mrec['start_hour']
-	    print "Migraine event #"+str(rid)+" . ECounts: "
-	    print ecount
-	    STATIONLIST=loadStationList()
-	    RUNLENGTH=500
-	    ccovdxMatches=0
-	    wgustsMatches=0
-	    humRiDrMatches=0
-	    hum20ptriseMatches=0
-	    hum25ptdropMatches=0
-	    temp20ptriseMatches=0
-	    temp20ptdropMatches=0
-	    for COUNT in range(0,RUNLENGTH):
-    		rcount={'ccovdx':0,'hum20ptrise':0,'hum25ptdrop':0,'temp20ptrise':0,'temp20ptdrop':0,'wgusts':0}
-    		D=random.randint(2,6)
-    		start_hour=random.randint(0,9)
-    		end_hour=start_hour+hour_length
-    		station=getRandomFromList(STATIONLIST)
-    		SQUERY={'station':station,
-    			'D':D,
-    			'M':11,
-    			'Y':2013,
-    			'evt_hour':
-    			{
-    				'$gte':start_hour,
-    				'$lte':end_hour  },
-    			}
-    		RS=db.events.find(SQUERY)
-    		rcount=countEvents(rcount,['ccovdx','wgusts','hum20ptrise','hum25ptdrop','temp20ptrise','temp20ptdrop'],RS)
-    		if rcount['ccovdx']==ecount['ccovdx']:
-    			ccovdxMatches+=1
-    		if rcount['wgusts']==ecount['wgusts']:
-    			wgustsMatches+=1
-		if rcount['hum20ptrise']>0 and rcount['hum25ptdrop']>0:
-			humRiDrMatches+=1
-		if rcount['hum20ptrise']==ecount['hum20ptrise']:
-			hum20ptriseMatches+=1
-		if rcount['hum25ptdrop']==ecount['hum25ptdrop']:
-			hum25ptdropMatches+=1
-		if rcount['temp20ptrise']==ecount['temp20ptrise']:
-			temp20ptriseMatches+=1
-		if rcount['temp20ptdrop']==ecount['temp20ptdrop']:
-			temp20ptdropMatches+=1
-	    print str(RUNLENGTH)+" runs done. Match report: "
-	    print "		ccovdx: "+str(ccovdxMatches)
-	    print "		wgusts: "+str(wgustsMatches)
-	    print " 		hum20ptrise: "+str(hum20ptriseMatches)
-	    print "		hum25ptdrop: "+str(hum25ptdropMatches)
-	    print "		temp20ptrise: "+str(temp20ptriseMatches)
-	    print "		temp20ptdrop: "+str(temp20ptdropMatches)
-	    print "		hum20ridr: "+str(humRiDrMatches)
-	    print "==================================="	
-            if ccovdxMatches >= 1 and wgustsMatches >=1 :
-                    print "no remarkable patterns found"
-            else:
-                    print "interesting possibility found!"
-        return
 def main_runMonteCarlo():
     IDLIST=[]
     IDRS=db.mapEvents.find()
@@ -522,17 +520,16 @@ def main_runMonteCarlo():
     	if rec['recid'] not in IDLIST:
     		IDLIST.append(rec['recid'])
     print IDLIST
-    #monteCarlo_event(IDLIST)
-    monteCarlo_user(IDLIST)
+    monteCarlo_user(IDLIST,1)
     return
 def main_bldMigEventsMap():
-    bldList_migraineEvent()
+    bldList_migraineEvent(1)
     return
 def main_bldDayEventList():
     stationfile=open('/home/ec2-user/migraineweather/etc/station.list','r')
     for station in stationfile:
     	station=station.strip().split()
-    	for D in range(2,11):
+    	for D in range(2,14):
 		FQUERY={'station':station[0],'D':D,'M':11,'Y':2013}
     		eventlist=find_events(FQUERY)
     		insert_events(eventlist)
