@@ -310,7 +310,7 @@ def fnGetSimQueryList(RUNLENGTH,elist,s_hour,e_hour,station,HB):
 #	STATIONLIST=loadStationList()
 	QUERYLIST=[]
 	for COUNT in range(0,RUNLENGTH):
-    		D=random.randint(2,11)
+    		D=random.randint(2,16)
 		if HB==1:
     			start_hour=random.randint(0,11)
     			end_hour=start_hour+12
@@ -331,7 +331,7 @@ def fnGetSimQueryList(RUNLENGTH,elist,s_hour,e_hour,station,HB):
 	return QUERYLIST
 		
 def monteCarlo_user(IDLIST,HB=0):
-	RUNLENGTH=2500
+	RUNLENGTH=1000
 	USER='Rob'
 	elist=[
 		'bar5ptrise',
@@ -403,6 +403,8 @@ def monteCarlo_user(IDLIST,HB=0):
 	BarRiseM=0
 	BarDropM=0
 	BarComboM=0
+	TempRiseM=0
+	TempDropM=0
 	matches={}
 	for item in elist:
 		matches[item]=0
@@ -417,6 +419,14 @@ def monteCarlo_user(IDLIST,HB=0):
 		caseBarDrops=case['bar25ptdrop']+case['bar50ptdrop']+case['bar100ptdrop']+case['bar5ptdrop']+case['bar10ptdrop']
 		eBarRises=ecount['bar25ptrise']+ecount['bar50ptrise']+ecount['bar100ptrise']+ecount['bar5ptrise']+ecount['bar10ptrise']
 		eBarDrops=ecount['bar25ptdrop']+ecount['bar50ptdrop']+ecount['bar100ptdrop']+ecount['bar5ptdrop']+ecount['bar10ptdrop']
+		caseTempRise=case['temp5ptrise']+case['temp10ptrise']+case['temp20ptrise']
+		caseTempDrop=case['temp5ptdrop']+case['temp10ptdrop']+case['temp20ptdrop']
+		eTempRise=ecount['temp5ptrise']+ecount['temp10ptrise']+ecount['temp20ptrise']
+		eTempDrop=ecount['temp5ptdrop']+ecount['temp10ptdrop']+ecount['temp20ptdrop']
+		if caseTempRise == eTempRise:
+			TempRiseM+=1
+		if caseTempDrop === eTempDrop:
+			TempDropM+=1
 		if caseBarRises == eBarRises:
 			BarRiseM+=1
 		if caseBarDrops == eBarDrops:
@@ -427,6 +437,10 @@ def monteCarlo_user(IDLIST,HB=0):
 			matches['hum20ptrise']+=1
 		if case['hum25ptdrop']==ecount['hum25ptdrop']:
 			matches['hum25ptdrop']+=1
+		if case['temp5ptrise']==ecount['temp5ptrise']:
+			matches['temp5ptrise']+=1
+		if case['temp5ptdrop']==ecount['temp5ptdrop']:
+			matches['temp5ptdrop']+=1
 		if case['temp20ptrise']==ecount['temp20ptrise']:
 			matches['temp20ptrise']+=1
 		if case['temp20ptdrop']==ecount['temp20ptdrop']:
@@ -503,6 +517,10 @@ def monteCarlo_user(IDLIST,HB=0):
 	print "\t\t"+str(ecount['hum5ptdrop'])+"\thum5ptdrop:\t\t"+str(matches['hum5ptdrop'])
 	print "\t\t"+str(ecount['hum20ptrise'])+"\thum20ptrise:\t\t"+str(matches['hum20ptrise'])
 	print "\t\t"+str(ecount['hum25ptdrop'])+"\thum25ptdrop:\t\t"+str(matches['hum25ptdrop'])
+	print "\t\t"+str(eTempRise)+"\tTotal Temp Rises:\t\t"+str(TempRiseM)
+	print "\t\t"+str(eTempDrop)+"\tTotal Temp Drops:\t\t"+str(TempDropM)
+	print "\t\t"+str(ecount['temp5ptrise'])+"\ttemp5ptrise:\t\t"+str(matches['temp5ptrise'])
+	print "\t\t"+str(ecount['temp5ptdrop'])+"\ttemp5ptdrop:\t\t"+str(matches['temp5ptdrop'])
 	print "\t\t"+str(ecount['temp10ptrise'])+"\ttemp10ptrise:\t\t"+str(matches['temp10ptrise'])
 	print "\t\t"+str(ecount['temp10ptdrop'])+"\ttemp10ptdrop:\t\t"+str(matches['temp10ptdrop'])
 	print "\t\t"+str(ecount['temp20ptrise'])+"\ttemp20ptrise:\t\t"+str(matches['temp20ptrise'])
@@ -520,7 +538,7 @@ def main_runMonteCarlo():
     	if rec['recid'] not in IDLIST:
     		IDLIST.append(rec['recid'])
     print IDLIST
-    monteCarlo_user(IDLIST,1)
+    monteCarlo_user(IDLIST,0)
     return
 def main_bldMigEventsMap():
     bldList_migraineEvent(1)
@@ -529,7 +547,7 @@ def main_bldDayEventList():
     stationfile=open('/home/ec2-user/migraineweather/etc/station.list','r')
     for station in stationfile:
     	station=station.strip().split()
-    	for D in range(2,14):
+    	for D in range(17,18):
 		FQUERY={'station':station[0],'D':D,'M':11,'Y':2013}
     		eventlist=find_events(FQUERY)
     		insert_events(eventlist)
